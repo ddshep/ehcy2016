@@ -33,9 +33,9 @@ kable(homeless.df2[which(is.na(email)), c("DISTRICT_ID", "DISTRICT_NAME.x")])#Pr
 #Remove the missing emails for the many to one analysis
 homeless.df2.noNA <- homeless.df2[-which(is.na(homeless.df2$email)), ]
 #Identify the duplicate emails -- HL assigned to >1 location
-homeless.df2.noNA[duplicated(homeless.df2.noNA$email), c(1,3,4,5,15)] #7
+homeless.df2.noNA[duplicated(homeless.df2.noNA$email), ] #7
 #Identify how many districts are duplicated (>1 HL for the district)
-homeless.df2.noNA[duplicated(homeless.df2.noNA$DISTRICT_ID), c(1,3,4,5,15)] #NONE!
+homeless.df2.noNA[duplicated(homeless.df2.noNA$DISTRICT_ID), ] #NONE!
 #Remove the duplicate rows from the DF for randomization
 homeless.df2.noNA.noDup <- homeless.df2.noNA[-which(duplicated(homeless.df2.noNA$email)), ]
 
