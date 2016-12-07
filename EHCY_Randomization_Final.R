@@ -37,7 +37,7 @@ homeless.df2.noNA <- homeless.df2[-which(is.na(homeless.df2$email)), ]
 #Identify the duplicate emails -- HL assigned to >1 location
 homeless.df2.noNA[duplicated(homeless.df2.noNA$email), ] #7
 #Identify how many districts are duplicated (>1 HL for the district)
-homeless.df2.noNA[duplicated(homeless.df2.noNA$DISTRICT_ID), ] #NONE!
+stopifnot(nrow(homeless.df2.noNA[duplicated(homeless.df2.noNA$DISTRICT_ID), ])==0) #NONE!
 #Remove the duplicate rows from the DF for randomization
 homeless.df2.noNA.noDup <- homeless.df2.noNA[-which(duplicated(homeless.df2.noNA$email)), ]
 
@@ -54,8 +54,26 @@ summary(m0c)
 anova(m0a, m0c) # does adding charter explain more variance than reporting --> no
 anova(m0b, m0c) # does adding reporting to charter explain more variance --> yes
 
-#Subset the dataframe into blocks
+## Add a blocking variable
 x <- homeless.df2.noNA.noDup
+## Add a block variable
+x$block <- interaction(x$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0)
+table(x$block,exclude=c())
+levels(x$block) <- c("No Charter, No Report","Charter, No Report","No Charter, Report","Charter, Report")
+## Check block coding
+with(x,ftable(block,x$COUNTY_NAME.x=="CHARTERS"))
+with(x,ftable(block,x$HOMELESS_COUNT_1516.x>0))
+with(x,ftable(block,x$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0))
+
+## Random assignment
+library(randomizr)
+set.seed(20161118)
+x$treatment <- block_ra(x$block)
+## Check to ensure equal numbers assigned
+table(x$treatment,x$block)
+
+
+#Subset the dataframe into blocks
 x.charter.report <- x[x$COUNTY_NAME.x=="CHARTERS" & x$HOMELESS_COUNT_1516.x>0, ]
 x.charter.noreport <- x[x$COUNTY_NAME.x=="CHARTERS" & !(x$HOMELESS_COUNT_1516.x>0), ]
 x.nocharter.report <- x[!(x$COUNTY_NAME.x=="CHARTERS") & (x$HOMELESS_COUNT_1516.x>0), ]
@@ -79,22 +97,14 @@ x.nocharter.noreport$treatment <- 0 #first assign all 0
 x.nocharter.noreport[which(x.nocharter.noreport$ran >= median(x.nocharter.noreport$ran)), "treatment"] <- 1#second, assign treatment
 #Combine back into one dataframe
 x.randomized <- rbind(x.charter.report, x.charter.noreport, x.nocharter.report, x.nocharter.noreport)
-## Add a block variable
-x.randomized$block <- interaction(x.randomized$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0)
-table(x.randomized$block)
-levels(x.randomized$block) <- c("No Charter, No Report","Charter, No Report","No Charter, Report","Charter, Report")
-with(x.randomized,ftable(block,x.randomized$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0))
-with(x.randomized,ftable(block,x.randomized$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0))
-with(x.randomized,ftable(block,x.randomized$COUNTY_NAME.x=="CHARTERS"))
-with(x.randomized,ftable(block,x$HOMELESS_COUNT_1516.x>0))
 x.treat <- x.randomized[x.randomized$treatment==1, ]
 x.control <- x.randomized[x.randomized$treatment==0, ]
 
 ## Look for equal numbers of treated and controls in each block
 table(x.nocharter.noreport$treatment)
-with(x.randomized,tapply(treatment,block,table))
+with(x.randomized,table(treatment,block))
 
-#Balance check (I don't see how this works)
+# Balance check (JB:I don't see how this is a balance check)
 m1 <- lm(HOMELESS_COUNT_1516.x ~ treatment + (COUNTY_NAME.x=="CHARTERS") +
            (HOMELESS_COUNT_1516.x>0),data = x.randomized)
 summary(m1) #treatment and control balanced on # of homeless reported
@@ -103,10 +113,10 @@ m2 <- lm(FREE_LUNCH ~ treatment + (COUNTY_NAME.x=="CHARTERS") +
            (HOMELESS_COUNT_1516.x>0),data = x.randomized)
 summary(m2) #balanced on number receiving free lunches
 
+## I would do this for a balance assessment
 x.randomized$freelunchn <- as.numeric(x.randomized$FREE_LUNCH)
-## I would do:
 library(RItools)
-xb1 <- xBalance(treatment~freelunchn,strata=list(block=~block),data=x.randomized,report="all")
+xb1 <- xBalance(treatment~freelunchn+HOMELESS_COUNT_1516.x,strata=list(block=~block),data=x.randomized,report="all")
 
 #Write the files
 write.csv(x.randomized, "ehcy.randomized.nj.csv")
