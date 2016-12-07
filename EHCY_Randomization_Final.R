@@ -5,8 +5,10 @@
 require("openxlsx")
 require("knitr")
 
-filepath1 <- "C:/Users/Owner/Google Drive/ISCS _ One Thousand Voices/Consulting Projects/SBST/Homeless Education/Data/HOMELESS 2015-2016 - 2016-10-27 (1).xlsx" #file path to district list with number of homeless
-filepath2 <- "C:/Users/Owner/Google Drive/ISCS _ One Thousand Voices/Consulting Projects/SBST/Homeless Education/Data/Homeless Free Lunch Request 2015-16.xlsx" #file path to district list with free school lunches
+# filepath1 <- "C:/Users/Owner/Google Drive/ISCS _ One Thousand Voices/Consulting Projects/SBST/Homeless Education/Data/HOMELESS 2015-2016 - 2016-10-27 (1).xlsx" #file path to district list with number of homeless
+filepath1 <- "HOMELESS 2015-2016 - 2016-10-27.xlsx" #file path to district list with number of homeless
+# filepath2 <- "C:/Users/Owner/Google Drive/ISCS _ One Thousand Voices/Consulting Projects/SBST/Homeless Education/Data/Homeless Free Lunch Request 2015-16.xlsx" #file path to district list with free school lunches
+filepath2 <- "Homeless Free Lunch Request 2015-16.xlsx" #file path to district list with free school lunches
 
 homeless.df <- read.xlsx(filepath1)
 lunches.df <- read.xlsx(filepath2)
@@ -41,9 +43,9 @@ homeless.df2.noNA.noDup <- homeless.df2.noNA[-which(duplicated(homeless.df2.noNA
 
 
 #When stratified by any homeless and charters
-#Blocking variable models 
+#Blocking variable models
 m0a <- lm(HOMELESS_COUNT_1516.x ~ (HOMELESS_COUNT_1516.x>0),data = homeless.df2)
-summary(m0a) #determine amount of variance explained by reporting / not 
+summary(m0a) #determine amount of variance explained by reporting / not
 m0b <- lm(HOMELESS_COUNT_1516.x ~ (COUNTY_NAME.x=="CHARTERS"), data = homeless.df2)
 summary(m0b) #determine amount of variance explained by charter / not
 m0c <- lm(HOMELESS_COUNT_1516.x ~ (HOMELESS_COUNT_1516.x>0) + (COUNTY_NAME.x=="CHARTERS"), data = homeless.df2)
@@ -60,36 +62,51 @@ x.nocharter.report <- x[!(x$COUNTY_NAME.x=="CHARTERS") & (x$HOMELESS_COUNT_1516.
 x.nocharter.noreport <- x[!(x$COUNTY_NAME.x=="CHARTERS") & !(x$HOMELESS_COUNT_1516.x>0), ]
 table(charter = x$COUNTY_NAME.x=="CHARTERS", homeless.reported = (x$HOMELESS_COUNT_1516.x>0))
 
-#Randomize 
+#Randomize
 set.seed(20161118)
 x.charter.report$ran <- runif(length(x.charter.report$email), 0, 1)
 x.charter.noreport$ran <- runif(length(x.charter.noreport$email), 0, 1)
 x.nocharter.report$ran <- runif(length(x.nocharter.report$email), 0, 1)
 x.nocharter.noreport$ran <- runif(length(x.nocharter.noreport$email), 0, 1)
 #If the random number is >= median then assign to treatment (1), else control (0)
-x.charter.report$treatment <- 0 #first assign all 0 
+x.charter.report$treatment <- 0 #first assign all 0
 x.charter.report[which(x.charter.report$ran >= median(x.charter.report$ran)), "treatment"] <- 1#second, assign treatment
-x.charter.noreport$treatment <- 0 #first assign all 0 
+x.charter.noreport$treatment <- 0 #first assign all 0
 x.charter.noreport[which(x.charter.noreport$ran >= median(x.charter.noreport$ran)), "treatment"] <- 1#second, assign treatment
-x.nocharter.report$treatment <- 0 #first assign all 0 
+x.nocharter.report$treatment <- 0 #first assign all 0
 x.nocharter.report[which(x.nocharter.report$ran >= median(x.nocharter.report$ran)), "treatment"] <- 1#second, assign treatment
-x.nocharter.noreport$treatment <- 0 #first assign all 0 
+x.nocharter.noreport$treatment <- 0 #first assign all 0
 x.nocharter.noreport[which(x.nocharter.noreport$ran >= median(x.nocharter.noreport$ran)), "treatment"] <- 1#second, assign treatment
 #Combine back into one dataframe
 x.randomized <- rbind(x.charter.report, x.charter.noreport, x.nocharter.report, x.nocharter.noreport)
+## Add a block variable
+x.randomized$block <- interaction(x.randomized$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0)
+table(x.randomized$block)
+levels(x.randomized$block) <- c("No Charter, No Report","Charter, No Report","No Charter, Report","Charter, Report")
+with(x.randomized,ftable(block,x.randomized$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0))
+with(x.randomized,ftable(block,x.randomized$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0))
+with(x.randomized,ftable(block,x.randomized$COUNTY_NAME.x=="CHARTERS"))
+with(x.randomized,ftable(block,x$HOMELESS_COUNT_1516.x>0))
 x.treat <- x.randomized[x.randomized$treatment==1, ]
 x.control <- x.randomized[x.randomized$treatment==0, ]
 
+## Look for equal numbers of treated and controls in each block
+table(x.nocharter.noreport$treatment)
+with(x.randomized,tapply(treatment,block,table))
 
-#Balance check
-m1 <- lm(HOMELESS_COUNT_1516.x ~ treatment + (COUNTY_NAME.x=="CHARTERS") + 
+#Balance check (I don't see how this works)
+m1 <- lm(HOMELESS_COUNT_1516.x ~ treatment + (COUNTY_NAME.x=="CHARTERS") +
            (HOMELESS_COUNT_1516.x>0),data = x.randomized)
 summary(m1) #treatment and control balanced on # of homeless reported
 
-m2 <- lm(FREE_LUNCH ~ treatment + (COUNTY_NAME.x=="CHARTERS") + 
+m2 <- lm(FREE_LUNCH ~ treatment + (COUNTY_NAME.x=="CHARTERS") +
            (HOMELESS_COUNT_1516.x>0),data = x.randomized)
 summary(m2) #balanced on number receiving free lunches
 
+x.randomized$freelunchn <- as.numeric(x.randomized$FREE_LUNCH)
+## I would do:
+library(RItools)
+xb1 <- xBalance(treatment~freelunchn,strata=list(block=~block),data=x.randomized,report="all")
 
 #Write the files
 write.csv(x.randomized, "ehcy.randomized.nj.csv")
