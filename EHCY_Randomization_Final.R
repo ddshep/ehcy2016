@@ -132,7 +132,6 @@ x2 <- rbind(x2, controlAppend)
 dim(x2)
 
 ## Look for equal numbers of treated and controls in each block
-table(x.nocharter.noreport$treatment)
 with(x,table(treatment,block))
 with(x2, table(treatment,block))
 
