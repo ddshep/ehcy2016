@@ -1,7 +1,7 @@
-#This file is to run the randomization for the 3 states.
+#This file is to run the randomization for the 3 states. Although adapted for each.
 #New Jersey was run on 21 November 2016 initially
 #Adapted by Jake, Daniel and reviewed by Mike. Finalized by Daniel Shephard 19 December 2016
-#Runes in batch mod after adjusting file paths
+#Runs in batch mod after adjusting file paths
 
 #Load packages
 require("openxlsx")
