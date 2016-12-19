@@ -1,9 +1,13 @@
 #This file is to run the randomization for the 3 states.
-#New Jersey was run on 21 November 2016
+#New Jersey was run on 21 November 2016 initially
+#Adapted by Jake, Daniel and reviewed by Mike. Finalized by Daniel Shephard 19 December 2016
+#Runes in batch mod after adjusting file paths
 
 #Load packages
 require("openxlsx")
 require("knitr")
+library("randomizr")
+require("RItools")
 
  filepath1 <- "C:/Users/Owner/Google Drive/ISCS _ One Thousand Voices/Consulting Projects/SBST/Homeless Education/Data/HOMELESS 2015-2016 - 2016-10-27 (1).xlsx" #file path to district list with number of homeless
 #filepath1 <- "HOMELESS 2015-2016 - 2016-10-27.xlsx" #file path to district list with number of homeless
@@ -84,8 +88,6 @@ with(x,ftable(block,x$HOMELESS_COUNT_1516.x>0))
 with(x,ftable(block,x$COUNTY_NAME.x=="CHARTERS",x$HOMELESS_COUNT_1516.x>0))
 
 ## Random assignment
-#install.packages("randomizr")
-library(randomizr)
 set.seed(20161118)
 x$treatment <- block_ra(x$block)
 ## Check to ensure equal numbers assigned
@@ -144,9 +146,7 @@ m3 <- lm(FREE_LUNCH ~ treatment*block, x2)
 summary(m3) # treatment should not be related to number receiving free lunches at baseline
 
 ## I would do this for a balance assessment
-#install.packages("RItools")
 x2$freelunchn <- as.numeric(x2$FREE_LUNCH)
-library(RItools)
 xb1 <- xBalance(treatment~freelunchn+HOMELESS_COUNT_1516.x,strata=list(block=~block),data=x2,report="all")
 xb1
 xb2 <- xBalance(treatment~HOMELESS_COUNT_1516.x,strata=list(block=~block),data=x2,report="all")
